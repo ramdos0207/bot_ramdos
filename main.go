@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/traPtitech/go-traq"
 	traqwsbot "github.com/traPtitech/traq-ws-bot"
@@ -22,7 +23,9 @@ func main() {
 	bot.OnMessageCreated(func(p *payload.MessageCreated) {
 		fmt.Println(p.Message.Text)
 		if p.Message.Text[len(p.Message.Text)-5:] == "check" {
-			checkHandrer(bot, p.Message.ChannelID)
+			checkHandrer(bot, p)
+		} else if p.Message.Text[len(p.Message.Text)-9:] == "checkuser" {
+			checkUserHandrer(bot, p)
 		} else {
 			_, _, err := bot.API().
 				MessageApi.
@@ -42,40 +45,54 @@ func main() {
 		panic(err)
 	}
 }
-func checkHandrer(bot *traqwsbot.Bot, c string) {
-	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
+func checkHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	resp, err := getChannelMessages(bot, p.Message.ChannelID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
-	channelId := c     // string | チャンネルUUID
-	limit := int32(50) // int32 | 取得する件数 (optional)
-	offset := int32(0) // int32 | 取得するオフセット (optional) (default to 0)
-	//since := time.Now()              // time.Time | 取得する時間範囲の開始日時 (optional) (default to "0000-01-01T00:00Z")
-	//until := time.Now()              // time.Time | 取得する時間範囲の終了日時 (optional)
-	inclusive := true        // bool | 範囲の端を含めるかどうか (optional) (default to false)
-	order := "order_example" // string | 昇順か降順か (optional) (default to "desc")
-	log.Println(channelId)
-	resp, r, err := bot.API().ChannelApi.GetMessages(context.Background(), channelId).Limit(limit).Offset(offset). /*.Since(since).Until(until)*/ Inclusive(inclusive).Order(order).Execute()
+	PostMessagesWithStamp(bot, resp, p.Message.ChannelID)
+}
+func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	resp, err := getUserMessages(bot, p.Message.User.ID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+	PostMessagesWithStamp(bot, resp, p.Message.ChannelID)
+}
+func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string) {
+	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
 	s := ""
 	for _, v := range resp {
-		if len(v.Content) > 50 {
-			s += v.Content[:50] + "... : "
+		c := ""
+		f := 0
+		q := []rune(v.Content)
+		if len(q) > 50 {
+			c += string(q[0:7]) + "... : "
 		} else {
-			s += v.Content + " : "
+			c += string(q) + " : "
 		}
 		for _, w := range v.Stamps {
 			for _, stamp := range stamplist {
 				if w.StampId == stamp.Id {
-					s += ":" + stamp.Name + ":"
+					var i int32
+					for i = 0; i < w.Count; i++ {
+						c += ":" + stamp.Name + ":"
+					}
+					f = 1
 				}
 			}
 		}
-		s += "\n"
+		c += "\n"
+		if f == 1 {
+			s += c
+		}
+	}
+	if len(s) > 3000 {
+		s = s[:3000] + "\n(snip)"
 	}
 	_, _, err = bot.API().
 		MessageApi.
@@ -87,4 +104,74 @@ func checkHandrer(bot *traqwsbot.Bot, c string) {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+// https://git.trap.jp/pikachu/traQ-BOT-pika-test/src/branch/main/commands/stamps.go
+func getUserMessages(bot *traqwsbot.Bot, userID string /*, progressMessageID string*/) ([]traq.Message, error) {
+	var messages []traq.Message
+	var before = time.Now()
+	for {
+		t1 := time.Now()
+
+		res, r, err := bot.API().MessageApi.SearchMessages(context.Background()).From(userID).Limit(int32(100)).Offset(int32(0)).Before(before).Execute()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		}
+
+		fmt.Println(time.Since(t1))
+		if err != nil {
+			return nil, err
+		}
+		if len(res.Hits) == 0 {
+			break
+		}
+
+		for i := range res.Hits {
+			messages = append(messages, res.Hits[i])
+		}
+		time.Sleep(time.Millisecond * 100)
+		before = messages[len(messages)-1].CreatedAt
+		fmt.Println(len(messages))
+		/*Bot.API().
+			MessageApi.EditMessage(context.Background(), progressMessageID).PostMessageRequest(traq.PostMessageRequest{
+			Content: fmt.Sprintf("Searching...(%d):loading:", len(messages)),
+		}).Execute()*/
+	}
+
+	return messages, nil
+}
+func getChannelMessages(bot *traqwsbot.Bot, channelID string /*, progressMessageID string*/) ([]traq.Message, error) {
+	var messages []traq.Message
+	var before = time.Now()
+	for {
+		t1 := time.Now()
+
+		res, r, err := bot.API().MessageApi.SearchMessages(context.Background()).In(channelID).Limit(int32(100)).Offset(int32(0)).Before(before).Execute()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		}
+
+		fmt.Println(time.Since(t1))
+		if err != nil {
+			return nil, err
+		}
+		if len(res.Hits) == 0 {
+			break
+		}
+
+		for i := range res.Hits {
+			messages = append(messages, res.Hits[i])
+		}
+		time.Sleep(time.Millisecond * 100)
+		before = messages[len(messages)-1].CreatedAt
+		fmt.Println(len(messages))
+		/*Bot.API().
+			MessageApi.EditMessage(context.Background(), progressMessageID).PostMessageRequest(traq.PostMessageRequest{
+			Content: fmt.Sprintf("Searching...(%d):loading:", len(messages)),
+		}).Execute()*/
+	}
+
+	return messages, nil
 }
