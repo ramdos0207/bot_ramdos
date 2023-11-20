@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/traPtitech/go-traq"
 	traqwsbot "github.com/traPtitech/traq-ws-bot"
@@ -46,7 +47,26 @@ func heatMapHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
-	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, 1)
+	daily := map[string]int{}
+	for _, v := range resp {
+		daily[v.CreatedAt.Format("2006-01-02")] += 1
+	}
+	s := ""
+	for i := 0; i < 7; i++ {
+		s += fmt.Sprintf("%s : %d\n", time.Now().AddDate(0, 0, -i).Format("2006-01-02"), daily[time.Now().AddDate(0, 0, -i).Format("2006-01-02")])
+	}
+	if len(s) > 3000 {
+		s = s[:3000] + "\n(snip)"
+	}
+	_, _, err = bot.API().
+		MessageApi.PostMessage(context.Background(), p.Message.ChannelID).
+		PostMessageRequest(traq.PostMessageRequest{
+			Content: s,
+		}).
+		Execute()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {

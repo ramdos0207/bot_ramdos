@@ -27,7 +27,7 @@ func main() {
 		} else if cmd[1] == "checkuser" {
 			checkUserHandrer(bot, p)
 		} else if cmd[1] == "heatmap" {
-			checkUserHandrer(bot, p)
+			heatMapHandrer(bot, p)
 		} else {
 			_, _, err := bot.API().
 				MessageApi.
