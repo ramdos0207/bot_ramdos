@@ -21,33 +21,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	userlist, r, err := bot.API().UserApi.GetUsers(context.Background()).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-	}
 	bot.OnMessageCreated(func(p *payload.MessageCreated) {
 		fmt.Println(p.Message.Text)
 		cmd := strings.Split(p.Message.Text, " ")
 		if cmd[1] == "check" {
 			checkHandrer(bot, p)
 		} else if cmd[1] == "checkuser" {
-			if len(cmd) < 3 {
-				checkUserHandrer(bot, p.Message.ChannelID, p.Message.User.ID, 1)
-			} else if len(cmd) < 4 {
-				for _, v := range userlist {
-					if v.Name == cmd[2] {
-						checkUserHandrer(bot, p.Message.ChannelID, v.Id, 1)
-					}
-				}
-			} else {
-				for _, v := range userlist {
-					if v.Name == cmd[2] {
-						x, _ := strconv.Atoi(cmd[3])
-						checkUserHandrer(bot, p.Message.ChannelID, v.Id, x)
-					}
-				}
-			}
+			checkUserHandrer(bot, p)
 		} else {
 			_, _, err := bot.API().
 				MessageApi.
@@ -74,15 +54,30 @@ func checkHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	}
 	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, 1)
 }
-func checkUserHandrer(bot *traqwsbot.Bot, channelID string, userID string, atleast int) {
+func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	userlist, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
+	cmd := strings.Split(p.Message.Text, " ")
+	userID := p.Message.User.ID
+	if len(cmd) >= 3 {
+		for _, v := range userlist {
+			if v.Name == cmd[2] {
+				userID = v.Id
+			}
+		}
+	}
 	resp, err := getUserMessages(bot, userID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
-	PostMessagesWithStamp(bot, resp, channelID, atleast)
+	atleast := 1
+	if len(cmd) >= 4 {
+		atleast, _ = strconv.Atoi(cmd[3])
+	}
+	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, atleast)
 }
 func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {
 	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
