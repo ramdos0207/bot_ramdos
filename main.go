@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/traPtitech/go-traq"
@@ -19,13 +21,33 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	userlist, r, err := bot.API().UserApi.GetUsers(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
 	bot.OnMessageCreated(func(p *payload.MessageCreated) {
 		fmt.Println(p.Message.Text)
-		if p.Message.Text[len(p.Message.Text)-5:] == "check" {
+		cmd := strings.Split(p.Message.Text, " ")
+		if cmd[1] == "check" {
 			checkHandrer(bot, p)
-		} else if p.Message.Text[len(p.Message.Text)-9:] == "checkuser" {
-			checkUserHandrer(bot, p)
+		} else if cmd[1] == "checkuser" {
+			if len(cmd) < 3 {
+				checkUserHandrer(bot, p.Message.ChannelID, p.Message.User.ID, 1)
+			} else if len(cmd) < 4 {
+				for _, v := range userlist {
+					if v.Name == cmd[2] {
+						checkUserHandrer(bot, p.Message.ChannelID, v.Id, 1)
+					}
+				}
+			} else {
+				for _, v := range userlist {
+					if v.Name == cmd[2] {
+						x, _ := strconv.Atoi(cmd[3])
+						checkUserHandrer(bot, p.Message.ChannelID, v.Id, x)
+					}
+				}
+			}
 		} else {
 			_, _, err := bot.API().
 				MessageApi.
@@ -50,16 +72,16 @@ func checkHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
-	PostMessagesWithStamp(bot, resp, p.Message.ChannelID)
+	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, 1)
 }
-func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
-	resp, err := getUserMessages(bot, p.Message.User.ID)
+func checkUserHandrer(bot *traqwsbot.Bot, channelID string, userID string, atleast int) {
+	resp, err := getUserMessages(bot, userID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
-	PostMessagesWithStamp(bot, resp, p.Message.ChannelID)
+	PostMessagesWithStamp(bot, resp, channelID, atleast)
 }
-func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string) {
+func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {
 	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
@@ -82,12 +104,12 @@ func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string) {
 					for i = 0; i < w.Count; i++ {
 						c += ":" + stamp.Name + ":"
 					}
-					f = 1
+					f += 1
 				}
 			}
 		}
 		c += "\n"
-		if f == 1 {
+		if f >= atleast {
 			s += c
 		}
 	}
@@ -126,10 +148,10 @@ func getUserMessages(bot *traqwsbot.Bot, userID string /*, progressMessageID str
 		if len(res.Hits) == 0 {
 			break
 		}
-
-		for i := range res.Hits {
-			messages = append(messages, res.Hits[i])
-		}
+		messages = append(messages, res.Hits...)
+		// for i := range res.Hits {
+		// 	messages = append(messages, res.Hits[i])
+		// }
 		time.Sleep(time.Millisecond * 100)
 		before = messages[len(messages)-1].CreatedAt
 		fmt.Println(len(messages))
@@ -161,9 +183,10 @@ func getChannelMessages(bot *traqwsbot.Bot, channelID string /*, progressMessage
 			break
 		}
 
-		for i := range res.Hits {
-			messages = append(messages, res.Hits[i])
-		}
+		messages = append(messages, res.Hits...)
+		// for i := range res.Hits {
+		// 	messages = append(messages, res.Hits[i])
+		// }
 		time.Sleep(time.Millisecond * 100)
 		before = messages[len(messages)-1].CreatedAt
 		fmt.Println(len(messages))
