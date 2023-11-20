@@ -1,0 +1,98 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/traPtitech/go-traq"
+	traqwsbot "github.com/traPtitech/traq-ws-bot"
+	"github.com/traPtitech/traq-ws-bot/payload"
+)
+
+func checkHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	resp, err := getChannelMessages(bot, p.Message.ChannelID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, 1)
+}
+func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	userlist, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
+	cmd := strings.Split(p.Message.Text, " ")
+	userID := p.Message.User.ID
+	if len(cmd) >= 3 {
+		for _, v := range userlist {
+			if v.Name == cmd[2] {
+				userID = v.Id
+			}
+		}
+	}
+	resp, err := getUserMessages(bot, userID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+	atleast := 1
+	if len(cmd) >= 4 {
+		atleast, _ = strconv.Atoi(cmd[3])
+	}
+	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, atleast)
+}
+func heatMapHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	resp, err := getUserMessages(bot, p.Message.User.ID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, 1)
+}
+
+func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {
+	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ChannelApi.GetMessages``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	s := ""
+	for _, v := range resp {
+		c := ""
+		f := 0
+		q := []rune(v.Content)
+		if len(q) > 50 {
+			c += string(q[0:7]) + "... : "
+		} else {
+			c += string(q) + " : "
+		}
+		for _, w := range v.Stamps {
+			for _, stamp := range stamplist {
+				if w.StampId == stamp.Id {
+					var i int32
+					for i = 0; i < w.Count; i++ {
+						c += ":" + stamp.Name + ":"
+					}
+					f += 1
+				}
+			}
+		}
+		c += "\n"
+		if f >= atleast {
+			s += c
+		}
+	}
+	if len(s) > 3000 {
+		s = s[:3000] + "\n(snip)"
+	}
+	_, _, err = bot.API().
+		MessageApi.
+		PostMessage(context.Background(), c).
+		PostMessageRequest(traq.PostMessageRequest{
+			Content: s,
+		}).
+		Execute()
+	if err != nil {
+		log.Println(err)
+	}
+}
