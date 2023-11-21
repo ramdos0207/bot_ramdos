@@ -25,9 +25,9 @@ func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	userlist, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
 	cmd := strings.Split(p.Message.Text, " ")
 	userID := p.Message.User.ID
-	if len(cmd) >= 3 {
+	if len(cmd) >= 5 {
 		for _, v := range userlist {
-			if v.Name == cmd[2] {
+			if v.Name == cmd[4] {
 				userID = v.Id
 			}
 		}
@@ -37,8 +37,8 @@ func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 	atleast := 1
-	if len(cmd) >= 4 {
-		atleast, _ = strconv.Atoi(cmd[3])
+	if len(cmd) >= 6 {
+		atleast, _ = strconv.Atoi(cmd[5])
 	}
 	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, atleast)
 }
@@ -68,7 +68,6 @@ func heatMapHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 		log.Println(err)
 	}
 }
-
 func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {
 	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
 
@@ -105,7 +104,11 @@ func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, at
 	if len(s) > 3000 {
 		s = s[:3000] + "\n(snip)"
 	}
-	_, _, err = bot.API().
+	simplePost(bot, c, s)
+}
+
+func simplePost(bot *traqwsbot.Bot, c string, s string) {
+	_, r, err := bot.API().
 		MessageApi.
 		PostMessage(context.Background(), c).
 		PostMessageRequest(traq.PostMessageRequest{
@@ -113,6 +116,7 @@ func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, at
 		}).
 		Execute()
 	if err != nil {
-		log.Println(err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
 }

@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
-	"github.com/traPtitech/go-traq"
 	traqwsbot "github.com/traPtitech/traq-ws-bot"
 	"github.com/traPtitech/traq-ws-bot/payload"
 )
@@ -22,23 +19,26 @@ func main() {
 	bot.OnMessageCreated(func(p *payload.MessageCreated) {
 		fmt.Println(p.Message.Text)
 		cmd := strings.Split(p.Message.Text, " ")
-		if cmd[1] == "check" {
-			checkHandrer(bot, p)
-		} else if cmd[1] == "checkuser" {
-			checkUserHandrer(bot, p)
-		} else if cmd[1] == "heatmap" {
-			heatMapHandrer(bot, p)
-		} else {
-			_, _, err := bot.API().
-				MessageApi.
-				PostMessage(context.Background(), p.Message.ChannelID).
-				PostMessageRequest(traq.PostMessageRequest{
-					Content: "No such command",
-				}).
-				Execute()
-			if err != nil {
-				log.Println(err)
+		if cmd[1] == "stamp" {
+			if cmd[2] == "recent" {
+				if len(cmd) > 3 && cmd[3] == "user" {
+					checkUserHandrer(bot, p)
+				} else {
+					checkHandrer(bot, p)
+				}
+			} else if cmd[2] == "heatmap" {
+				heatMapHandrer(bot, p)
+			} else {
+				simplePost(bot, p.Message.ChannelID, "No such command")
 			}
+		} else if cmd[1] == "help" {
+			bytes, err := os.ReadFile("help.txt")
+			if err != nil {
+				panic(err)
+			}
+			simplePost(bot, p.Message.ChannelID, string(bytes))
+		} else {
+			simplePost(bot, p.Message.ChannelID, "No such command")
 		}
 
 	})
