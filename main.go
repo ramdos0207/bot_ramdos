@@ -26,11 +26,13 @@ func main() {
 				} else {
 					checkHandrer(bot, p)
 				}
-			} else if cmd[2] == "heatmap" {
-				heatMapHandrer(bot, p)
+			} else if cmd[2] == "count" {
+				stampCountHandrer(bot, p)
 			} else {
 				simplePost(bot, p.Message.ChannelID, "No such command")
 			}
+		} else if cmd[1] == "heatmap" {
+			heatMapHandrer(bot, p)
 		} else if cmd[1] == "help" {
 			bytes, err := os.ReadFile("help.txt")
 			if err != nil {

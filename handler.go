@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -15,13 +14,15 @@ import (
 )
 
 func checkHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
-	resp, err := getChannelMessages(bot, p.Message.ChannelID)
+	c := simplePost(bot, p.Message.ChannelID, "実行中...")
+	resp, err := getChannelMessages(bot, p.Message.ChannelID, c)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
-	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, 1)
+	PostMessagesWithStamp(bot, resp, c, 1)
 }
 func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	c := simplePost(bot, p.Message.ChannelID, "実行中...")
 	userlist, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
 	cmd := strings.Split(p.Message.Text, " ")
 	userID := p.Message.User.ID
@@ -32,7 +33,7 @@ func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 			}
 		}
 	}
-	resp, err := getUserMessages(bot, userID)
+	resp, err := getUserMessages(bot, userID, c)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
@@ -40,10 +41,12 @@ func checkUserHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	if len(cmd) >= 6 {
 		atleast, _ = strconv.Atoi(cmd[5])
 	}
-	PostMessagesWithStamp(bot, resp, p.Message.ChannelID, atleast)
+	PostMessagesWithStamp(bot, resp, c, atleast)
 }
+
 func heatMapHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
-	resp, err := getUserMessages(bot, p.Message.User.ID)
+	c := simplePost(bot, p.Message.ChannelID, "実行中...")
+	resp, err := getUserMessages(bot, p.Message.User.ID, c)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
@@ -58,15 +61,50 @@ func heatMapHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	if len(s) > 3000 {
 		s = s[:3000] + "\n(snip)"
 	}
-	_, _, err = bot.API().
-		MessageApi.PostMessage(context.Background(), p.Message.ChannelID).
-		PostMessageRequest(traq.PostMessageRequest{
-			Content: s,
-		}).
-		Execute()
-	if err != nil {
-		log.Println(err)
+	simpleEdit(bot, c, s)
+}
+func stampCountHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	c := simplePost(bot, p.Message.ChannelID, "実行中...")
+	userlist, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
+	cmd := strings.Split(p.Message.Text, " ")
+	userID := p.Message.User.ID
+	if len(cmd) >= 4 {
+		for _, v := range userlist {
+			if v.Name == cmd[3] {
+				userID = v.Id
+			}
+		}
 	}
+	resp, err := getUserMessages(bot, userID, c)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+
+	//-------------------------------------
+	target := "w"
+	if len(cmd) >= 5 {
+		target = cmd[4]
+	}
+	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", r)
+	}
+	for _, stamp := range stamplist {
+		if target == stamp.Name || target == ":"+stamp.Name+":" {
+			target = stamp.Id
+		}
+	}
+	fmt.Println(target)
+	count := 0
+	for _, v := range resp {
+		for _, w := range v.Stamps {
+			if w.StampId == target {
+				count += 1
+			}
+		}
+	}
+	s := "stamp count: " + strconv.Itoa(count)
+	simpleEdit(bot, c, s)
 }
 func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {
 	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
@@ -81,7 +119,7 @@ func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, at
 		f := 0
 		q := []rune(v.Content)
 		if len(q) > 50 {
-			c += string(q[0:7]) + "... : "
+			c += string(q[0:50]) + "... : "
 		} else {
 			c += string(q) + " : "
 		}
@@ -104,19 +142,5 @@ func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, at
 	if len(s) > 3000 {
 		s = s[:3000] + "\n(snip)"
 	}
-	simplePost(bot, c, s)
-}
-
-func simplePost(bot *traqwsbot.Bot, c string, s string) {
-	_, r, err := bot.API().
-		MessageApi.
-		PostMessage(context.Background(), c).
-		PostMessageRequest(traq.PostMessageRequest{
-			Content: s,
-		}).
-		Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-	}
+	simpleEdit(bot, c, s)
 }
