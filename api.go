@@ -38,9 +38,6 @@ func getUserMessages(bot *traqwsbot.Bot, userID string, progressMessageID string
 			break
 		}
 		messages = append(messages, res.Hits...)
-		// for i := range res.Hits {
-		// 	messages = append(messages, res.Hits[i])
-		// }
 		time.Sleep(time.Millisecond * 100)
 		before = messages[len(messages)-1].CreatedAt
 		fmt.Println(len(messages))
@@ -78,9 +75,6 @@ func getChannelMessages(bot *traqwsbot.Bot, channelID string, progressMessageID 
 		}
 
 		messages = append(messages, res.Hits...)
-		// for i := range res.Hits {
-		// 	messages = append(messages, res.Hits[i])
-		// }
 		time.Sleep(time.Millisecond * 100)
 		before = messages[len(messages)-1].CreatedAt
 		fmt.Println(len(messages))

@@ -96,14 +96,28 @@ func stampCountHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	}
 	fmt.Println(target)
 	count := 0
+	total := 0
 	for _, v := range resp {
 		for _, w := range v.Stamps {
 			if w.StampId == target {
 				count += 1
+				total += int(w.Count)
 			}
 		}
 	}
-	s := "stamp count: " + strconv.Itoa(count)
+	userstat, r, err := bot.API().UserApi.GetUserStats(context.Background(), userID).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", r)
+	}
+	sendcount, sendtotal := -1, -1
+	for _, v := range userstat.Stamps {
+		if v.Id == target {
+			sendcount = int(v.Count)
+			sendtotal = int(v.Total)
+		}
+	}
+	s := "received: " + strconv.Itoa(count) + "(total: " + strconv.Itoa(total) + ")\n"
+	s += "sent: " + strconv.Itoa(sendcount) + "(total: " + strconv.Itoa(sendtotal) + ")\n"
 	simpleEdit(bot, c, s)
 }
 func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {
