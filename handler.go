@@ -109,7 +109,7 @@ func stampCountHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 	}
-	sendcount, sendtotal := -1, -1
+	sendcount, sendtotal := 0, 0
 	for _, v := range userstat.Stamps {
 		if v.Id == target {
 			sendcount = int(v.Count)
