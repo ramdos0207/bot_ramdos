@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -120,6 +121,7 @@ func stampCountHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	s += "sent: " + strconv.Itoa(sendcount) + "(total: " + strconv.Itoa(sendtotal) + ")\n"
 	simpleEdit(bot, c, s)
 }
+
 func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, atleast int) {
 	stamplist, r, err := bot.API().StampApi.GetStamps(context.Background()).Execute()
 
@@ -190,6 +192,12 @@ func lengthHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	average := float64(sum) / float64(len(resp))
 	simpleEdit(bot, c, fmt.Sprintf("sum: %d\naverage: %f\nover %d: %d", sum, average, threshold, over))
 }
+
+type lenstr struct {
+	sum int
+	str string
+}
+
 func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 
 	groupId := ""
@@ -208,6 +216,7 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	c := simplePost(bot, p.Message.ChannelID, "実行中...")
 	responsetext := "|user|sum|count|average|>200|\n|---|---|---|---|---|\n"
 	x := simplePost(bot, p.Message.ChannelID, responsetext)
+	sq := []lenstr{}
 	for _, v := range userlist {
 		resp, err := getUserMessages(bot, v.Id, c)
 		if err != nil {
@@ -230,7 +239,10 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 			}
 		}
 
-		responsetext += fmt.Sprintf("|:@%s:%s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)
+		if name != "?" {
+			responsetext += fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)
+			sq = append(sq, lenstr{sum, fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+		}
 		if len(resp) > 9900 {
 			simpleEdit(bot, x, responsetext+"\n(snip)")
 		} else {
@@ -238,5 +250,11 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 		}
 
 	}
+	sort.Slice(sq, func(i, j int) bool { return sq[i].sum > sq[j].sum })
+	responsetext = "|user|sum|count|average|>200|\n|---|---|---|---|---|\n"
+	for _, v := range sq {
+		responsetext += v.str
+	}
+	simpleEdit(bot, x, responsetext)
 
 }
