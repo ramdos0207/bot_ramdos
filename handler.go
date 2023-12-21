@@ -190,3 +190,53 @@ func lengthHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	average := float64(sum) / float64(len(resp))
 	simpleEdit(bot, c, fmt.Sprintf("sum: %d\naverage: %f\nover %d: %d", sum, average, threshold, over))
 }
+func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+
+	groupId := ""
+	grouplist, _, _ := bot.API().GroupApi.GetUserGroups(context.Background()).Execute()
+	cmd := strings.Split(p.Message.Text, " ")
+	if len(cmd) >= 3 {
+		for _, v := range grouplist {
+			if v.Name == cmd[2] {
+				groupId = v.Id
+			}
+		}
+	}
+	userlist, _, _ := bot.API().GroupApi.GetUserGroupMembers(context.Background(), groupId).Execute()
+
+	username, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
+	c := simplePost(bot, p.Message.ChannelID, "実行中...")
+	responsetext := "|user|sum|count|average|>200|\n|---|---|---|---|---|\n"
+	x := simplePost(bot, p.Message.ChannelID, responsetext)
+	for _, v := range userlist {
+		resp, err := getUserMessages(bot, v.Id, c)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+		threshold := 200
+		sum := 0
+		over := 0
+		for _, v := range resp {
+			sum += len(v.Content)
+			if len(v.Content) > threshold {
+				over += 1
+			}
+		}
+		average := float64(sum) / float64(len(resp))
+		name := "?"
+		for _, q := range username {
+			if q.Id == v.Id {
+				name = q.Name
+			}
+		}
+
+		responsetext += fmt.Sprintf("|:@%s:%s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)
+		if len(resp) > 9900 {
+			simpleEdit(bot, x, responsetext+"\n(snip)")
+		} else {
+			simpleEdit(bot, x, responsetext)
+		}
+
+	}
+
+}
