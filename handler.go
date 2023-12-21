@@ -158,3 +158,35 @@ func PostMessagesWithStamp(bot *traqwsbot.Bot, resp []traq.Message, c string, at
 	}
 	simpleEdit(bot, c, s)
 }
+func lengthHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	c := simplePost(bot, p.Message.ChannelID, "実行中...")
+	userId := p.Message.User.ID
+	userlist, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
+	cmd := strings.Split(p.Message.Text, " ")
+	if len(cmd) >= 3 {
+		for _, v := range userlist {
+			if v.Name == cmd[2] {
+				userId = v.Id
+			}
+		}
+	}
+	resp, err := getUserMessages(bot, userId, c)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+
+	threshold := 200
+	if len(cmd) >= 4 {
+		threshold, _ = strconv.Atoi(cmd[3])
+	}
+	sum := 0
+	over := 0
+	for _, v := range resp {
+		sum += len(v.Content)
+		if len(v.Content) > threshold {
+			over += 1
+		}
+	}
+	average := float64(sum) / float64(len(resp))
+	simpleEdit(bot, c, fmt.Sprintf("sum: %d\naverage: %f\nover %d: %d", sum, average, threshold, over))
+}

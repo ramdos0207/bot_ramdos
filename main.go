@@ -31,6 +31,8 @@ func main() {
 			} else {
 				simplePost(bot, p.Message.ChannelID, "No such command")
 			}
+		} else if cmd[1] == "length" {
+			lengthHandrer(bot, p)
 		} else if cmd[1] == "heatmap" {
 			heatMapHandrer(bot, p)
 		} else if cmd[1] == "help" {
