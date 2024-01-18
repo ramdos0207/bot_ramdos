@@ -221,7 +221,7 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 
 	username, _, _ := bot.API().UserApi.GetUsers(context.Background()).Execute()
 	c := simplePost(bot, p.Message.ChannelID, "実行中...")
-	responsetext := "|user|sum|count|average|>200|\n|---|---|---|---|---|\n"
+	responsetext := "|user|sum|count|average|>200|sum(rune)|average(rune)|>200(rune)|\n|---|---|---|---|---|---|---|---|\n"
 	x := simplePost(bot, p.Message.ChannelID, responsetext)
 	sq := []lenstr{}
 	for _, v := range userlist {
@@ -232,13 +232,20 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 		threshold := 200
 		sum := 0
 		over := 0
+		runesum := 0
+		runeover := 0
 		for _, v := range resp {
 			sum += len(v.Content)
+			runesum += len([]rune(v.Content))
 			if len(v.Content) > threshold {
 				over += 1
 			}
+			if len([]rune(v.Content)) > threshold {
+				runeover += 1
+			}
 		}
 		average := float64(sum) / float64(len(resp))
+		runeaverage := float64(runesum) / float64(len(resp))
 		name := "?"
 		for _, q := range username {
 			if q.Id == v.Id {
@@ -254,15 +261,16 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 			minimum, _ = strconv.Atoi(cmd[4])
 		}
 		if name != "?" && len(resp) >= minimum{
-			responsetext += fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)
+			c := fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over,runesum,runeaverage,runeover)
+			responsetext += c
 			if sortkey=="sum"{
-				sq = append(sq, lenstr{sum,   fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+				sq = append(sq, lenstr{sum,c})
 			}else if sortkey=="count"{
-				sq = append(sq, lenstr{len(resp), fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+				sq = append(sq, lenstr{len(resp), c})
 			}else if sortkey=="average"{
-				sq = append(sq, lenstr{int(100.0*average), fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+				sq = append(sq, lenstr{int(100.0*average),c})
 			}else if sortkey==">200"{
-				sq = append(sq, lenstr{over, fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+				sq = append(sq, lenstr{over,c})
 			}
 		}
 		if len(responsetext) > 9900 {
