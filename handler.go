@@ -281,7 +281,7 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 
 	}
 	sort.Slice(sq, func(i, j int) bool { return sq[i].sum > sq[j].sum })
-	responsetext = "|user|sum|count|average|>200|\n|---|---|---|---|---|\n"
+	responsetext = "|user|sum|count|average|>200|sum(rune)|average(rune)|>200(rune)|\n|---|---|---|---|---|---|---|---|\n"
 	for _, v := range sq {
 		responsetext += v.str
 	}
