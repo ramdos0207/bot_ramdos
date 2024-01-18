@@ -183,14 +183,21 @@ func lengthHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	}
 	sum := 0
 	over := 0
+	runesum := 0
+	runeover := 0
 	for _, v := range resp {
 		sum += len(v.Content)
 		if len(v.Content) > threshold {
 			over += 1
 		}
+		runesum += len([]rune(v.Content))
+		if len([]rune(v.Content)) > threshold {
+			runeover += 1
+		}
 	}
 	average := float64(sum) / float64(len(resp))
-	simpleEdit(bot, c, fmt.Sprintf("sum: %d\naverage: %f\nover %d: %d", sum, average, threshold, over))
+	runeaverage := float64(runesum) / float64(len(resp))
+	simpleEdit(bot, c, fmt.Sprintf("sum(byte): %d\naverage(byte): %f\nover %d(byte): %d\nsum(rune):%d\naverage(rune):%f\nover %d(rune):%d", sum, average, threshold, over, runesum, runeaverage, threshold,runeover))
 }
 
 type lenstr struct {
@@ -238,10 +245,25 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 				name = q.Name
 			}
 		}
-
-		if name != "?" {
+		sortkey:="sum"
+		if len(cmd) >= 4 {
+			sortkey = cmd[3]
+		}
+		minimum := 0
+		if len(cmd) >= 5 {
+			minimum, _ = strconv.Atoi(cmd[4])
+		}
+		if name != "?" && len(resp) >= minimum{
 			responsetext += fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)
-			sq = append(sq, lenstr{sum, fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+			if sortkey=="sum"{
+				sq = append(sq, lenstr{sum,   fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+			}else if sortkey=="count"{
+				sq = append(sq, lenstr{len(resp), fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+			}else if sortkey=="average"{
+				sq = append(sq, lenstr{int(100.0*average), fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+			}else if sortkey==">200"{
+				sq = append(sq, lenstr{over, fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over)})
+			}
 		}
 		if len(responsetext) > 9900 {
 			simpleEdit(bot, x, responsetext+"\n(snip)")
