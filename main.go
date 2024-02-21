@@ -43,6 +43,8 @@ func main() {
 				panic(err)
 			}
 			simplePost(bot, p.Message.ChannelID, string(bytes))
+		} else if cmd[1] == "delete" {
+			deleteHandrer(bot, p)
 		} else {
 			simplePost(bot, p.Message.ChannelID, "No such command")
 		}

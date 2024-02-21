@@ -197,7 +197,7 @@ func lengthHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	}
 	average := float64(sum) / float64(len(resp))
 	runeaverage := float64(runesum) / float64(len(resp))
-	simpleEdit(bot, c, fmt.Sprintf("sum(byte): %d\naverage(byte): %f\nover %d(byte): %d\nsum(rune):%d\naverage(rune):%f\nover %d(rune):%d", sum, average, threshold, over, runesum, runeaverage, threshold,runeover))
+	simpleEdit(bot, c, fmt.Sprintf("sum(byte): %d\naverage(byte): %f\nover %d(byte): %d\nsum(rune):%d\naverage(rune):%f\nover %d(rune):%d", sum, average, threshold, over, runesum, runeaverage, threshold, runeover))
 }
 
 type lenstr struct {
@@ -252,7 +252,7 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 				name = q.Name
 			}
 		}
-		sortkey:="sum"
+		sortkey := "sum"
 		if len(cmd) >= 4 {
 			sortkey = cmd[3]
 		}
@@ -260,17 +260,17 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 		if len(cmd) >= 5 {
 			minimum, _ = strconv.Atoi(cmd[4])
 		}
-		if name != "?" && len(resp) >= minimum{
-			c := fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over,runesum,runeaverage,runeover)
+		if name != "?" && len(resp) >= minimum {
+			c := fmt.Sprintf("|:@%s: %s|%d|%d|%f|%d|%d|%f|%d|\n", name, name, sum, len(resp), average, over, runesum, runeaverage, runeover)
 			responsetext += c
-			if sortkey=="sum"{
-				sq = append(sq, lenstr{sum,c})
-			}else if sortkey=="count"{
+			if sortkey == "sum" {
+				sq = append(sq, lenstr{sum, c})
+			} else if sortkey == "count" {
 				sq = append(sq, lenstr{len(resp), c})
-			}else if sortkey=="average"{
-				sq = append(sq, lenstr{int(100.0*average),c})
-			}else if sortkey==">200"{
-				sq = append(sq, lenstr{over,c})
+			} else if sortkey == "average" {
+				sq = append(sq, lenstr{int(100.0 * average), c})
+			} else if sortkey == ">200" {
+				sq = append(sq, lenstr{over, c})
 			}
 		}
 		if len(responsetext) > 9900 {
@@ -291,4 +291,10 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 		simpleEdit(bot, x, responsetext)
 	}
 
+}
+func deleteHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
+	cmd := strings.Split(p.Message.Text, " ")
+	target := cmd[2]
+	fmt.Println(target)
+	bot.API().MessageApi.DeleteMessage(context.Background(), target).Execute()
 }
