@@ -294,6 +294,10 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 }
 func deleteHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	cmd := strings.Split(p.Message.Text, " ")
+	if p.Message.User.ID != "2e0c6679-166f-455a-b8b0-35cdfd257256" {
+		simplePost(bot, p.Message.ChannelID, "You are not allowed to use this command")
+		return
+	}
 	target := cmd[2]
 	fmt.Println(target)
 	bot.API().MessageApi.DeleteMessage(context.Background(), target).Execute()
