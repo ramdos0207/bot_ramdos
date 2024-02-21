@@ -273,8 +273,8 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 				sq = append(sq, lenstr{over, c})
 			}
 		}
-		if len(responsetext) > 9900 {
-			simpleEdit(bot, x, responsetext+"\n(snip)")
+		if len(responsetext) > 9990 {
+			simpleEdit(bot, x, responsetext[:9990]+"\n(snip)")
 		} else {
 			simpleEdit(bot, x, responsetext)
 		}
@@ -285,8 +285,8 @@ func lengthgroupHandrer(bot *traqwsbot.Bot, p *payload.MessageCreated) {
 	for _, v := range sq {
 		responsetext += v.str
 	}
-	if len(responsetext) > 9900 {
-		simpleEdit(bot, x, responsetext+"\n(snip)")
+	if len(responsetext) > 9990 {
+		simpleEdit(bot, x, responsetext[:9990]+"\n(snip)")
 	} else {
 		simpleEdit(bot, x, responsetext)
 	}
