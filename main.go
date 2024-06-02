@@ -38,7 +38,7 @@ func main() {
 		} else if cmd[1] == "heatmap" {
 			heatMapHandrer(bot, p)
 		} else if cmd[1] == "help" {
-			bytes, err := os.ReadFile("help.txt")
+			bytes, err := os.ReadFile("./help.txt")
 			if err != nil {
 				panic(err)
 			}
